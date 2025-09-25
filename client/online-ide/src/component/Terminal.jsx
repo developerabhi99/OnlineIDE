@@ -4,11 +4,11 @@ import '@xterm/xterm/css/xterm.css'
 import { createWebSocket } from '../socket'
 
 const Terminal = () => {
-  const terminalRef = useRef()
-  const isRendered = useRef(false)
+  const terminalRef = useRef() //
+  const isRendered = useRef(false) // for checking its not rendered twice
   const termRef = useRef(null)
-  const wsRef = useRef(null)
-  const inputBufferRef = useRef('')
+  const wsRef = useRef(null)  // for keeping websocket ref
+  const inputBufferRef = useRef('') // ref to store input entered by user before enter
 
   const printPrompt = (cwd) => {
     termRef.current.write(`\r\n${cwd}> `)
@@ -20,7 +20,7 @@ const Terminal = () => {
 
     const term = new XTerminal({
       rows: 20,
-      cols: 80,
+      cols: 150,
       cursorBlink: true,
     })
     term.open(terminalRef.current)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/developerabhi99/onlineIDE/api"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -14,9 +15,21 @@ func main() {
 	r.HandleFunc("/", api.MainHandler).Methods("GET")
 
 	r.HandleFunc("/ws", api.WebSocketHandler)
+	r.HandleFunc("/files", api.GetFileTree)
+
+	//confiruging cors
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // React app URL
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
+	handler := c.Handler(r)
 
 	log.Println("Server running at 8080")
-	err := http.ListenAndServe(":8080", r)
+	err := http.ListenAndServe(":8080", handler)
 
 	if err != nil {
 		log.Fatal("Unable to Serve ", err.Error())

@@ -2,3 +2,8 @@ Step 1:
 1.set up server using gorilla
 2.Routes ->
 3.Setup Websocket for terminal
+
+
+Generating File tree
+
+./user -> check nesting if its Dir call recursively

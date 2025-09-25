@@ -1,20 +1,49 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
 import Terminal from './component/terminal'
+import './App.css'
+import FileTree from './component/Tree'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [fileTree, setFileTree] = useState({})
+
+
+  const getFileTree= async ()=>{
+    const response= await fetch('http://localhost:8080/files')
+    const result=await response.json();
+
+    console.log(result)
+
+    setFileTree(result)
+
+  }
+
+  useEffect(()=>{
+    getFileTree()
+  },[])
 
   return (
-   
-      <div>
-        <div class="terminal-div">
-          <Terminal/>
-        </div>
+    <div className="playground-container">
+    {/* Editor + FileTree */}
+    <div className="editor-container">
+      <div className="file-container">
+        <h4>Explorer</h4>
+        <FileTree tree={fileTree} />
       </div>
-    
+
+      <div className="file-editor">
+        <pre>
+{`function hello() {
+console.log("Hello World");
+}`}
+        </pre>
+      </div>
+    </div>
+
+    {/* Terminal */}
+    <div className="terminal-container">
+      <Terminal />
+    </div>
+  </div>
   )
 }
 

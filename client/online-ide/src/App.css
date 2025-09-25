@@ -1,0 +1,45 @@
+/* File container (sidebar for tree) */
+.file-container {
+  width: 250px;                 /* fixed sidebar width */
+  background-color: #252526;
+  border-right: 1px solid #333;
+  padding: 8px;
+  overflow-y: auto;             /* scroll if many files */
+  font-size: 14px;
+  color: #d4d4d4;
+}
+
+/* File tree items */
+.file-container ul {
+  list-style: none;
+  padding-left: 16px;
+  margin: 0;
+}
+
+.file-container li {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.file-container li:hover {
+  background-color: #373737;
+}
+
+/* File editor (main area) */
+.file-editor {
+  flex: 1;
+  background-color: #1e1e1e;
+  padding: 12px;
+  overflow: auto;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  color: #fff;
+}
+
+/* Make file tree + editor side by side */
+.editor-container {
+  display: flex;
+  flex-direction: row; /* horizontal split */
+  height: 100%;
+}
