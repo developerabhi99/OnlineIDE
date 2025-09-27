@@ -16,6 +16,9 @@ func main() {
 
 	r.HandleFunc("/ws", api.WebSocketHandler)
 	r.HandleFunc("/files", api.GetFileTree)
+	r.HandleFunc("/fileWatcher", api.FileTreeWatcher)
+	r.HandleFunc("/fileCode/{path:.*}", api.GetFileCode) //{path:.*}-> this tell mux param may contain slashes.
+	r.HandleFunc("/saveFile", api.SaveFileCode).Methods("POST")
 
 	//confiruging cors
 

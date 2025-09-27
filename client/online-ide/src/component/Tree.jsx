@@ -1,12 +1,16 @@
 
-const FileTreeNode = ({ node }) => {
+const FileTreeNode = ({ onSelect,path,node }) => {
     return (
-      <li>
-        {node.name}
-        {node.children && node.children.length > 0 && (
+      <li onClick={(e)=>{
+        e.stopPropagation()
+        if (node.isDir) return ;
+        onSelect(path);
+      }}>
+        {node.name!="node_modules" && node.name}
+        {node.name!="node_modules" && (node.children && node.children.length) > 0 && (
           <ul>
             {node.children.map((child, i) => (
-              <FileTreeNode key={i} node={child} />
+              <FileTreeNode onSelect={onSelect} path={path +'/'+child.name} key={i} node={child} />
             ))}
           </ul>
         )}
@@ -14,12 +18,12 @@ const FileTreeNode = ({ node }) => {
     )
   }
   
-  const FileTree = ({ tree }) => {
+  const FileTree = ({ tree,onSelect }) => {
     if (!tree || !tree.name) return null // handle empty case
   
     return (
       <ul>
-        <FileTreeNode node={tree} />
+        <FileTreeNode node={tree} path="" onSelect={onSelect} />
       </ul>
     )
   }

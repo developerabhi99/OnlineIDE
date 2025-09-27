@@ -22,6 +22,7 @@ const Terminal = () => {
       rows: 20,
       cols: 150,
       cursorBlink: true,
+      allowProposedApi: true, // needed for some clipboard functions
     })
     term.open(terminalRef.current)
     termRef.current = term

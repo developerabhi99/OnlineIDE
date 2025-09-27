@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -23,6 +25,8 @@ type FileNode struct {
 var cwd string
 var startCwd string
 
+var Logger *log.Logger
+
 func init() {
 	cwdDir, err := os.Getwd()
 	if err != nil {
@@ -30,6 +34,15 @@ func init() {
 	}
 	cwd = filepath.Join(cwdDir, "user")
 	startCwd = filepath.Join(cwdDir, "user")
+
+	// Open log file (create if not exists, append if exists)
+	file, err := os.OpenFile("server.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+
+	// Create a logger that writes to both file and stdout
+	Logger = log.New(file, "", log.LstdFlags)
 }
 
 var cmd *exec.Cmd
@@ -108,6 +121,40 @@ func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 			conn.WriteMessage(websocket.TextMessage, []byte("__CWD__:"+cwd))
 			continue
 		}
+
+		// if strings.HasPrefix(command, "npm run dev") {
+		// 	cmd := exec.Command("npm", "run", "dev")
+
+		// 	// Capture stdout and stderr
+		// 	stdout, _ := cmd.StdoutPipe()
+		// 	stderr, _ := cmd.StderrPipe()
+
+		// 	if err := cmd.Start(); err != nil {
+		// 		conn.WriteMessage(websocket.TextMessage, []byte("Error starting dev server: "+err.Error()))
+		// 		return
+		// 	}
+
+		// 	// Stream stdout
+		// 	go func() {
+		// 		scanner := bufio.NewScanner(stdout)
+		// 		for scanner.Scan() {
+		// 			line := scanner.Text()
+		// 			conn.WriteMessage(websocket.TextMessage, []byte(line))
+		// 		}
+		// 	}()
+
+		// 	// Stream stderr
+		// 	go func() {
+		// 		scanner := bufio.NewScanner(stderr)
+		// 		for scanner.Scan() {
+		// 			line := scanner.Text()
+		// 			conn.WriteMessage(websocket.TextMessage, []byte(line))
+		// 		}
+		// 	}()
+
+		// 	// Don’t call cmd.Wait() here if you want it to keep running
+		// 	continue
+		// }
 
 		// if strings.HasPrefix(command, "cd ") {
 		// 	//cwd = currentUserFile + "/user"
@@ -224,4 +271,140 @@ func generateFileTree(path string) (FileNode, error) {
 		}
 	}
 	return node, nil
+}
+
+func FileTreeWatcher(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+
+	if err != nil {
+		log.Println("Websocket failed to upgrade ", err.Error())
+		return
+	}
+
+	defer conn.Close()
+
+	watcher, err := fsnotify.NewWatcher()
+
+	if err != nil {
+		log.Println("Failed to create watcher ", err)
+		return
+	}
+
+	defer watcher.Close()
+
+	err = watcher.Add("./user")
+	if err != nil {
+		log.Println("Failed to watch ./user:", err)
+		return
+	}
+
+	filepath.Walk("./user", func(path string, info os.FileInfo, err error) error {
+		if err == nil && info.IsDir() {
+			_ = watcher.Add(path)
+		}
+		return nil
+	})
+
+	log.Println("Started watching ./user")
+
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			log.Println("File change detected:", event)
+
+			// Regenerate file tree
+			tree, err := generateFileTree("./user")
+			if err != nil {
+				continue
+			}
+
+			// Send updated tree to frontend
+			treeJson, _ := json.Marshal(tree)
+			conn.WriteMessage(websocket.TextMessage, treeJson)
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			log.Println("Watcher error:", err)
+		}
+	}
+}
+
+func LogInfo(msg string) {
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		Logger.Printf("[INFO] %s:%d %s", file, line, msg)
+	} else {
+		Logger.Printf("[INFO] %s", msg)
+	}
+}
+
+func LogError(msg string) {
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		Logger.Printf("[ERROR] %s:%d %s", file, line, msg)
+	} else {
+		Logger.Printf("[ERROR] %s", msg)
+	}
+}
+
+func GetFileCode(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	relPath := vars["path"]
+	//fmt.Fprintf(w, "path is %s", relPath)
+
+	absPath := filepath.Join(startCwd, relPath)
+
+	data, err := os.ReadFile(absPath)
+
+	if err != nil {
+		http.Error(w, "Unable to read file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"path":    relPath,
+		"content": string(data),
+	})
+
+}
+
+func SaveFileCode(w http.ResponseWriter, r *http.Request) {
+
+	type SaveRequest struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	var req SaveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	// vars := mux.Vars(r)
+	// relPath := vars["path"]
+	//fmt.Fprintf(w, "path is %s", relPath)
+
+	absPath := filepath.Join(startCwd, req.Path)
+
+	//absPath := filepath.Join(startCwd, req.Path)
+	if !strings.HasPrefix(absPath, startCwd) {
+		http.Error(w, "Invalid path", http.StatusForbidden)
+		return
+	}
+
+	err := os.WriteFile(absPath, []byte(req.Content), 0644)
+	if err != nil {
+		http.Error(w, "Failed to save file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("File saved successfully"))
+
 }
