@@ -3,5 +3,5 @@ package main
 import "fmt"
 
 func main() {
-  fmt.Println("hello from custom editor online")
+  fmt.Println("hello from custom editor online eee tetsts")
 }

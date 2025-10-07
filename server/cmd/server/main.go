@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	r := mux.NewRouter()
+	r := mux.NewRouter() // gorilla library
 
 	r.HandleFunc("/", api.MainHandler).Methods("GET")
 
